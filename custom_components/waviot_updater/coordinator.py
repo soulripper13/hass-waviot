@@ -1,9 +1,20 @@
-# coordinator.py - Fetches WAVIoT modem data for the last 3 months
-import aiohttp
 from datetime import datetime, timedelta, timezone
 import logging
+
+import aiohttp
+
+from homeassistant.components.recorder.models import (
+    StatisticData,
+    StatisticMeanType,
+    StatisticMetaData,
+)
+from homeassistant.components.recorder.statistics import async_add_external_statistics
+from homeassistant.const import UnitOfEnergy
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from .const import UPDATE_INTERVAL, BASE_URL
+from homeassistant.util import slugify
+from homeassistant.util.unit_conversion import EnergyConverter
+
+from .const import BASE_URL, DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,6 +26,7 @@ class WaviotDataUpdateCoordinator(DataUpdateCoordinator):
         self.api_key = api_key
         self.modem_id = modem_id
         self.data = {}
+        self._statistics_imported = False
         super().__init__(
             hass,
             _LOGGER,
@@ -85,6 +97,7 @@ class WaviotDataUpdateCoordinator(DataUpdateCoordinator):
 
             # --- Compute latest metric only ---
             self._compute_latest()
+            self._import_hourly_statistics()
 
         return self.data
 
@@ -105,6 +118,57 @@ class WaviotDataUpdateCoordinator(DataUpdateCoordinator):
         self.data["last_update"] = latest_dt
 
         _LOGGER.debug("Latest reading computed: %s at %s", latest_value, latest_dt)
+
+    def _import_hourly_statistics(self) -> None:
+        """Import readings using the provider's actual hourly intervals."""
+        readings = self.data.get("readings", [])
+        if self._statistics_imported:
+            # Re-import two days so late provider corrections replace existing rows.
+            readings = readings[-49:]
+        statistics = []
+
+        for previous, current in zip(readings, readings[1:], strict=False):
+            previous_timestamp, previous_value = previous
+            current_timestamp, current_value = current
+
+            # WAVIoT timestamps a reading at the end of the measured hour.
+            if current_timestamp - previous_timestamp != 3600:
+                continue
+
+            consumption = current_value - previous_value
+            if consumption < 0:
+                _LOGGER.warning(
+                    "Skipping hourly statistic at %s because the meter total reset",
+                    current_timestamp,
+                )
+                continue
+
+            statistics.append(
+                StatisticData(
+                    start=datetime.fromtimestamp(previous_timestamp, tz=timezone.utc),
+                    state=consumption,
+                    sum=current_value,
+                )
+            )
+
+        if not statistics:
+            return
+
+        statistic_id = f"{DOMAIN}:{slugify(self.modem_id)}_energy_consumption"
+        metadata = StatisticMetaData(
+            mean_type=StatisticMeanType.NONE,
+            has_sum=True,
+            name=f"WAVIoT {self.modem_id} Energy Consumption",
+            source=DOMAIN,
+            statistic_id=statistic_id,
+            unit_class=EnergyConverter.UNIT_CLASS,
+            unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        )
+        async_add_external_statistics(self.hass, metadata, statistics)
+        self._statistics_imported = True
+        _LOGGER.debug(
+            "Imported %s hourly statistics for %s", len(statistics), statistic_id
+        )
 
     def _init_empty_data(self):
         """Initialize empty data dict."""
