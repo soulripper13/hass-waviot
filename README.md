@@ -1,6 +1,6 @@
 # Монитор энергии WAVIoT для Home Assistant
 ![HACS Badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 Пользовательская интеграция для Home Assistant для мониторинга **энергомеров WAVIoT** через официальный API [curog.ru](https://lk.curog.ru).
 Она предоставляет сенсоры использования электричества, уровня батареи и температуры — с полной конфигурацией через UI.
@@ -69,7 +69,7 @@ https://lk.curog.ru/api.data/get_modem_channel_values/
 
 # WAVIoT Energy Monitor for Home Assistant
 ![HACS Badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 A custom Home Assistant integration to monitor **WAVIoT energy meters** via the official [curog.ru](https://lk.curog.ru) API.
 It provides electricity usage, battery level, and temperature sensors — with full UI configuration.
@@ -108,6 +108,11 @@ After installing and restarting:
 | `sensor.waviot_<modem_id>_energy_total` | Total accumulated energy (T1) | kWh |
 | `sensor.waviot_<modem_id>_battery` | Battery level | % |
 | `sensor.waviot_<modem_id>_temperature` | Device temperature | °C |
+
+The integration also imports hourly consumption as the external statistic
+`waviot_updater:<modem_id>_energy_consumption`. Select this statistic as the grid
+consumption source in the Energy Dashboard. Unlike the live total sensor, it uses
+the provider's original interval timestamps, including delayed readings.
 ---
 ## 🔄 Data Source
 All data is fetched from:
