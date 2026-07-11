@@ -66,14 +66,18 @@ class WaviotDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 channel_id = "electro_ac_p_lsum_t1"
                 now = datetime.now(tz=timezone.utc)
-                three_months_ago = now - timedelta(days=90)  # only last 3 months
+                from_timestamp = (
+                    int((now - timedelta(days=2)).timestamp())
+                    if self._statistics_imported
+                    else 0
+                )
 
                 url = (
                     f"{BASE_URL}data/get_modem_channel_values/"
                     f"?modem_id={self.modem_id}&channel={channel_id}&key={self.api_key}"
-                    f"&from={int(three_months_ago.timestamp())}&to={int(now.timestamp())}"
+                    f"&from={from_timestamp}&to={int(now.timestamp())}"
                 )
-                _LOGGER.debug("Fetching readings for last 3 months: %s", url)
+                _LOGGER.debug("Fetching readings from timestamp %s", from_timestamp)
 
                 readings = []
                 async with session.get(url) as resp:
