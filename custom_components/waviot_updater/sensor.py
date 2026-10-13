@@ -58,4 +58,6 @@ class WaviotSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
+        if not self.coordinator.data:
+            return None
         return self.coordinator.data.get(self.sensor_type)
