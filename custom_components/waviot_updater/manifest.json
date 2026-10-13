@@ -7,6 +7,6 @@
   "documentation": "https://github.com/soulripper13/hass-waviot",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/soulripper13/hass-waviot/issues",
-  "requirements": ["aiohttp"],
+  "requirements": [],
   "version": "1.2.1"
 }
